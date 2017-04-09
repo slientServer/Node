@@ -186,4 +186,24 @@ module.exports = router;
 ```
 每个路由文件通过生成一个 express.Router 实例 router 并导出，通过 app.use 挂载到不同的路径
 
+## 模板引擎
+### Ejs
+安装ejs:  
+npm i ejs --save  
+设置：  
+app.set('views', './views');  设置模板路径  
+app.set('view engine', 'ejs'); 设置模板引擎  
+未使用模板引擎：  
+app.send('string');  
+使用模板引擎：
+app.render('index', {name: req.params.name});  
+ejs模板内容：
 
+* <% code %>：运行 JavaScript 代码，不输出
+* <%= code %>：显示转义后的 HTML内容
+* <%- code %>：显示原始 HTML 内容
+
+### Includes
+引用模板要使用<%- code %> 而不是<%= code %>
+
+### 中间件
