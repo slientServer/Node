@@ -1,15 +1,11 @@
 {
   "name": "blog",
   "version": "1.0.0",
-  "description": "Just a node little blog case",
+  "description": "Personal blog for myself",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "bhao",
-  "license": "ISC",
-  "dependencies": {
-    "ejs": "^2.5.6",
-    "express": "^4.14.0"
-  }
+  "license": "ISC"
 }
