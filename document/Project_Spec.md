@@ -71,3 +71,152 @@ module.exports = {
 创建留言：POST /posts/:postId/comment
 删除留言：GET /posts/:postId/comment/:commentId/remove
 ```
+## Restful
+* URI中不应该包含动词，/posts/show/1是不合适的，正确的写法应该是/posts/1, 使用get方法.
+* GET用来获取资源，POST用来新建资源（也可以用于更新资源），PUT用来更新资源，DELETE用来删除资源
+* 资源可以是一种服务，如转账transaction
+* 版本号不应该出现在uri中，应该出现在请求的头信息中
+* 返回状态码
+
+```
+200 OK - [GET]：服务器成功返回用户请求的数据，该操作是幂等的（Idempotent）。
+201 CREATED - [POST/PUT/PATCH]：用户新建或修改数据成功。
+202 Accepted - [*]：表示一个请求已经进入后台排队（异步任务）
+204 NO CONTENT - [DELETE]：用户删除数据成功。
+400 INVALID REQUEST - [POST/PUT/PATCH]：用户发出的请求有错误，服务器没有进行新建或修改数据的操作，该操作是幂等的。
+401 Unauthorized - [*]：表示用户没有权限（令牌、用户名、密码错误）。
+403 Forbidden - [*] 表示用户得到授权（与401错误相对），但是访问是被禁止的。
+404 NOT FOUND - [*]：用户发出的请求针对的是不存在的记录，服务器没有进行操作，该操作是幂等的。
+406 Not Acceptable - [GET]：用户请求的格式不可得（比如用户请求JSON格式，但是只有XML格式）。
+410 Gone -[GET]：用户请求的资源被永久删除，且不会再得到的。
+422 Unprocesable entity - [POST/PUT/PATCH] 当创建一个对象时，发生一个验证错误。
+500 INTERNAL SERVER ERROR - [*]：服务器发生错误，用户将无法判断发出的请求是否成功。
+http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html
+```
+* Http 动词
+
+```
+GET（SELECT）：从服务器取出资源（一项或多项）。
+POST（CREATE）：在服务器新建一个资源。
+PUT（UPDATE）：在服务器更新资源（客户端提供改变后的完整资源）。
+PATCH（UPDATE）：在服务器更新资源（客户端提供改变的属性）。
+DELETE（DELETE）：从服务器删除资源。
+HEAD：获取资源的元数据。
+OPTIONS：获取信息，关于资源的哪些属性是客户端可以改变的。
+```
+
+## 系统实现
+### 相关实现
+* API的身份认证应该使用OAuth 2.0框架 http://www.ruanyifeng.com/blog/2014/05/oauth_2_0.html
+* 服务器返回的数据格式，应该尽量使用JSON，避免使用XML
+* OAuth2.0 四种授权模式：授权码模式，简化模式，密码模式，客户端模式
+* Session 通过express-session中间件来实现
+* 页面通知需要connect-flash中间件实现，并依赖于session
+
+### 权限控制
+新建中间件来实现权限控制
+
+### 中间件加载  
+中间件的加载顺序很重要。如上面设置静态文件目录的中间件应该放到 routes(app) 之前加载，这样静态文件的请求就不会落到业务逻辑的路由里；flash 中间件应该放到 session 中间件之后加载，因为 flash 是基于 session 的.
+
+### Semantic-UI框架定制前端界面  
+http://www.jianshu.com/p/5d1aa9d735e6
+
+### app.locals 和 res.locals
+
+express/lib/application.js  
+
+```
+app.render = function render(name, options, callback) {
+  ...
+  var opts = options;
+  var renderOptions = {};
+  ...
+  // merge app.locals
+  merge(renderOptions, this.locals);
+
+  // merge options._locals
+  if (opts._locals) {
+    merge(renderOptions, opts._locals);
+  }
+
+  // merge options
+  merge(renderOptions, opts);
+  ...
+  tryRender(view, renderOptions, done);
+};
+```
+express/lib/response.js  
+
+```
+res.render = function render(view, options, callback) {
+  var app = this.req.app;
+  var opts = options || {};
+  ...
+  // merge res.locals
+  opts._locals = self.locals;
+  ...
+  // render
+  app.render(view, opts, done);
+};
+```
+在调用 res.render 的时候，express 合并（merge）了 3 处的结果后传入要渲染的模板，优先级：res.render 传入的对象> res.locals 对象 > app.locals 对象，所以 app.locals 和 res.locals 几乎没有区别，都用来渲染模板，使用上的区别在于：app.locals 上通常挂载常量信息（如博客名、描述、作者信息），res.locals 上通常挂载变量信息，即每次请求可能的值都不一样（如请求者信息，res.locals.user = req.session.user）
+
+### DB操作
+
+Mongolass
+
+### 注册与文件上传
+
+express-formidable 
+
+### 404页面
+
+```
+// 404 page
+app.use(function (req, res) {
+  if (!res.headersSent) {
+    res.status(404).render('404');
+  }
+});
+```
+
+### 错误页面
+
+### 日志
+我们将正常请求的日志打印到终端并写入了 logs/success.log，将错误请求的日志打印到终端并写入了 logs/error.log。需要注意的是：记录正常请求日志的中间件要放到 routes(app) 之前，记录错误请求日志的中间件要放到 routes(app) 之后.
+
+```
+// 正常请求的日志
+app.use(expressWinston.logger({
+  transports: [
+    new (winston.transports.Console)({
+      json: true,
+      colorize: true
+    }),
+    new winston.transports.File({
+      filename: 'logs/success.log'
+    })
+  ]
+}));
+// 路由
+routes(app);
+// 错误请求的日志
+app.use(expressWinston.errorLogger({
+  transports: [
+    new winston.transports.Console({
+      json: true,
+      colorize: true
+    }),
+    new winston.transports.File({
+      filename: 'logs/error.log'
+    })
+  ]
+}));
+```
+
+## gitignore
+如果我们想把项目托管到 git 服务器上（如: GitHub），而不想把线上配置、本地调试的 logs 以及 node_modules 添加到 git 的版本控制中，这个时候就需要 .gitignore 文件了，git 会读取 .gitignore 并忽略这些文件
+
+## 测试
+
